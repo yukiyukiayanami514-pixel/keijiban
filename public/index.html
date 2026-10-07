@@ -3,113 +3,281 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>カンタン掲示板</title>
+  <title>AIチャット</title>
   <style>
-    :root { --bg: #f5f5f0; --card: #fff; --text: #222; --sub: #777; --accent: #2a7ae2; --border: #ddd; }
+    :root { --bg: #f7f7f5; --side: #ecece8; --card: #fff; --text: #222; --sub: #777; --accent: #10a37f;
+      --border: #ddd; --user: #e7f4ef; --code: #f0f0ec; }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #1b1b1d; --card: #26262a; --text: #eee; --sub: #999; --accent: #5b9cf0; --border: #3a3a3f; }
+      :root { --bg: #1b1b1d; --side: #141416; --card: #26262a; --text: #eee; --sub: #999; --accent: #19c37d;
+        --border: #3a3a3f; --user: #23332d; --code: #111113; }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text);
-      font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; line-height: 1.6; }
-    main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
-    h1 { font-size: 1.6rem; margin: 0 0 16px; }
-    form, .post { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-    form { display: grid; gap: 10px; margin-bottom: 24px; }
-    input, textarea { width: 100%; padding: 10px; font: inherit; color: inherit; background: var(--bg);
-      border: 1px solid var(--border); border-radius: 6px; }
-    textarea { min-height: 90px; resize: vertical; }
-    button { justify-self: end; padding: 8px 24px; font: inherit; font-weight: bold; color: #fff;
-      background: var(--accent); border: none; border-radius: 6px; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: default; }
-    .error { color: #d33; margin: 0; min-height: 1em; font-size: .9rem; }
-    #posts { display: grid; gap: 12px; }
-    .post header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: .9rem; }
-    .post .no { color: var(--sub); }
-    .post .name { font-weight: bold; color: #2a9d55; }
-    .post .date { color: var(--sub); }
-    .post p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .empty { color: var(--sub); text-align: center; }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); display: flex;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; line-height: 1.7; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+
+    /* サイドバー（会話履歴） */
+    #side { width: 260px; flex-shrink: 0; background: var(--side); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 12px; gap: 10px; }
+    #newChat { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+      font-weight: bold; text-align: left; }
+    #history { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 2px; }
+    .conv { display: flex; align-items: center; border-radius: 6px; }
+    .conv:hover, .conv.active { background: var(--card); }
+    .conv button.open { flex: 1; min-width: 0; padding: 8px; border: none; background: none; text-align: left;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .9rem; }
+    .conv button.del { border: none; background: none; color: var(--sub); padding: 4px 8px; visibility: hidden; }
+    .conv:hover button.del, .conv.active button.del { visibility: visible; }
+    .side-foot { font-size: .8rem; color: var(--sub); }
+    .side-foot a { color: var(--sub); }
+
+    /* メイン */
+    #main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+    #topbar { display: none; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    #menu { border: none; background: none; font-size: 1.3rem; padding: 4px 8px; }
+    #log { flex: 1; overflow-y: auto; padding: 24px 16px; }
+    .inner { max-width: 760px; margin: 0 auto; }
+    .welcome { text-align: center; color: var(--sub); margin-top: 20vh; }
+    .welcome h1 { color: var(--text); font-size: 1.8rem; margin: 0 0 8px; }
+    .msg { margin: 0 0 20px; display: flex; }
+    .msg.user { justify-content: flex-end; }
+    .msg .bubble { max-width: 100%; overflow-wrap: anywhere; }
+    .msg.user .bubble { background: var(--user); padding: 10px 14px; border-radius: 16px; max-width: 80%;
+      white-space: pre-wrap; }
+    .msg.assistant .bubble { width: 100%; }
+    .bubble p { margin: 0 0 .8em; white-space: pre-wrap; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble pre { background: var(--code); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: .85rem; }
+    .bubble code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: .9em; }
+    .bubble pre code { background: none; padding: 0; }
+    .bubble .error { color: #d33; }
+    .typing::after { content: "●"; animation: blink 1s infinite; color: var(--sub); }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* 入力欄 */
+    #form { padding: 12px 16px 16px; }
+    .box { display: flex; gap: 8px; align-items: flex-end; background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 8px 8px 8px 14px; }
+    #input { flex: 1; border: none; outline: none; resize: none; background: none; color: inherit; font: inherit;
+      max-height: 200px; padding: 6px 0; }
+    #send { width: 38px; height: 38px; border: none; border-radius: 50%; background: var(--accent); color: #fff;
+      font-weight: bold; flex-shrink: 0; }
+    #send:disabled { opacity: .4; cursor: default; }
+    .note { text-align: center; font-size: .75rem; color: var(--sub); margin-top: 6px; }
+
+    @media (max-width: 760px) {
+      #side { position: fixed; inset: 0 auto 0 0; z-index: 10; transform: translateX(-100%); transition: transform .2s; }
+      body.side-open #side { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.3); }
+      #topbar { display: flex; }
+      .conv button.del { visibility: visible; }
+    }
   </style>
 </head>
 <body>
-<main>
-  <h1>カンタン掲示板</h1>
+<aside id="side">
+  <button id="newChat">＋ 新しいチャット</button>
+  <nav id="history"></nav>
+  <div class="side-foot">会話履歴はこのブラウザに紐づいて保存されます ・ <a href="/board">掲示板</a></div>
+</aside>
 
+<div id="main">
+  <div id="topbar"><button id="menu" aria-label="メニュー">☰</button><strong id="topTitle">AIチャット</strong></div>
+  <div id="log"><div class="inner" id="messages"></div></div>
   <form id="form">
-    <input id="name" placeholder="名前（空欄なら「名無しさん」）" maxlength="30">
-    <textarea id="message" placeholder="本文を入力してください" maxlength="1000" required></textarea>
-    <p class="error" id="error"></p>
-    <button type="submit" id="submit">書き込む</button>
+    <div class="inner">
+      <div class="box">
+        <textarea id="input" rows="1" placeholder="メッセージを入力（Shift+Enterで改行）" maxlength="4000"></textarea>
+        <button type="submit" id="send" aria-label="送信" disabled>↑</button>
+      </div>
+      <div class="note">AIの回答は間違っていることがあります。重要な情報は確認してください。</div>
+    </div>
   </form>
-
-  <section id="posts"></section>
-</main>
+</div>
 
 <script>
-  const postsEl = document.getElementById('posts');
-  const form = document.getElementById('form');
-  const nameEl = document.getElementById('name');
-  const messageEl = document.getElementById('message');
-  const errorEl = document.getElementById('error');
-  const submitBtn = document.getElementById('submit');
+  const $ = (id) => document.getElementById(id);
+  const messagesEl = $('messages'), logEl = $('log'), historyEl = $('history');
+  const form = $('form'), input = $('input'), sendBtn = $('send');
 
-  try { nameEl.value = localStorage.getItem('keijiban-name') || ''; } catch {}
-
-  let lastJson = '';
-
-  function render(posts) {
-    if (posts.length === 0) {
-      postsEl.innerHTML = '<p class="empty">まだ書き込みはありません。最初の書き込みをどうぞ！</p>';
-      return;
+  // ログインの代わりに、ブラウザごとのランダムIDで会話履歴を区別する
+  function getClientId() {
+    let id = null;
+    try { id = localStorage.getItem('chat-client-id'); } catch {}
+    if (!id) {
+      id = crypto.randomUUID();
+      try { localStorage.setItem('chat-client-id', id); } catch {}
     }
-    postsEl.replaceChildren(...[...posts].reverse().map((p) => {
-      const article = document.createElement('article');
-      article.className = 'post';
-      const header = document.createElement('header');
-      const no = document.createElement('span'); no.className = 'no'; no.textContent = p.id + '.';
-      const name = document.createElement('span'); name.className = 'name'; name.textContent = p.name;
-      const date = document.createElement('span'); date.className = 'date';
-      date.textContent = new Date(p.createdAt).toLocaleString('ja-JP');
-      header.append(no, name, date);
-      const body = document.createElement('p'); body.textContent = p.message;
-      article.append(header, body);
-      return article;
-    }));
+    return id;
+  }
+  const clientId = getClientId();
+  const api = (path, opts = {}) =>
+    fetch(path, { ...opts, headers: { 'X-Client-Id': clientId, ...(opts.headers || {}) } });
+
+  let currentId = null;
+  let busy = false;
+
+  // ---- かんたんなMarkdown表示（コードブロック・インラインコード・太字・見出し） ----
+  const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function inline(s) {
+    return esc(s)
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/^#{1,6}\s+(.+)$/gm, '<strong>$1</strong>');
+  }
+  function renderMarkdown(text) {
+    const parts = text.split(/```/);
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        const code = part.replace(/^[^\n]*\n/, ''); // 1行目の言語名を除く
+        return `<pre><code>${esc(code)}</code></pre>`;
+      }
+      return part.split(/\n{2,}/).filter((p) => p.trim()).map((p) => `<p>${inline(p.trim())}</p>`).join('');
+    }).join('');
   }
 
-  async function load() {
+  // ---- 画面表示 ----
+  function showWelcome() {
+    messagesEl.innerHTML = '<div class="welcome"><h1>何かお手伝いできることはありますか？</h1>' +
+      '<p>下の入力欄からAIに話しかけてみましょう。</p></div>';
+  }
+  function addMessage(role, content) {
+    messagesEl.querySelector('.welcome')?.remove();
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (role === 'user') bubble.textContent = content;
+    else bubble.innerHTML = renderMarkdown(content);
+    wrap.append(bubble);
+    messagesEl.append(wrap);
+    return bubble;
+  }
+  const scrollBottom = () => { logEl.scrollTop = logEl.scrollHeight; };
+
+  async function loadHistory() {
     try {
-      const res = await fetch('/api/posts');
-      const text = await res.text();
-      if (text !== lastJson) { lastJson = text; render(JSON.parse(text)); }
+      const res = await api('/api/conversations');
+      const list = await res.json();
+      if (!res.ok) return;
+      historyEl.replaceChildren(...list.map((c) => {
+        const row = document.createElement('div');
+        row.className = 'conv' + (c.id === currentId ? ' active' : '');
+        const open = document.createElement('button');
+        open.className = 'open'; open.textContent = c.title; open.title = c.title;
+        open.onclick = () => openConversation(c.id);
+        const del = document.createElement('button');
+        del.className = 'del'; del.textContent = '🗑'; del.title = '削除';
+        del.onclick = () => removeConversation(c.id);
+        row.append(open, del);
+        return row;
+      }));
     } catch {}
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    errorEl.textContent = '';
-    submitBtn.disabled = true;
+  async function openConversation(id) {
+    if (busy) return;
+    document.body.classList.remove('side-open');
+    const res = await api('/api/conversations/' + id);
+    if (!res.ok) { newChat(); return; }
+    const conv = await res.json();
+    currentId = id;
+    $('topTitle').textContent = conv.title;
+    messagesEl.replaceChildren();
+    conv.messages.forEach((m) => addMessage(m.role, m.content));
+    scrollBottom();
+    loadHistory();
+  }
+
+  function newChat() {
+    if (busy) return;
+    currentId = null;
+    $('topTitle').textContent = 'AIチャット';
+    showWelcome();
+    loadHistory();
+    document.body.classList.remove('side-open');
+    input.focus();
+  }
+
+  async function removeConversation(id) {
+    if (busy || !confirm('この会話を削除しますか？')) return;
+    await api('/api/conversations/' + id, { method: 'DELETE' });
+    if (id === currentId) newChat(); else loadHistory();
+  }
+
+  // ---- 送信してAIの回答をストリーミング表示 ----
+  async function send() {
+    const message = input.value.trim();
+    if (!message || busy) return;
+    busy = true;
+    sendBtn.disabled = true;
+    input.value = '';
+    autoresize();
+    addMessage('user', message);
+    const bubble = addMessage('assistant', '');
+    bubble.classList.add('typing');
+    scrollBottom();
+
+    let text = '';
     try {
-      const res = await fetch('/api/posts', {
+      const res = await api('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nameEl.value, message: messageEl.value }),
+        body: JSON.stringify({ conversationId: currentId, message }),
       });
-      const data = await res.json();
-      if (!res.ok) { errorEl.textContent = data.error || '書き込みに失敗しました'; return; }
-      try { localStorage.setItem('keijiban-name', nameEl.value); } catch {}
-      messageEl.value = '';
-      await load();
-    } catch {
-      errorEl.textContent = '通信エラーが発生しました';
-    } finally {
-      submitBtn.disabled = false;
-    }
-  });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.conversationId) currentId = data.conversationId;
+        throw new Error(data.error || '送信に失敗しました');
+      }
+      const isNew = !currentId;
+      currentId = res.headers.get('X-Conversation-Id');
+      if (isNew) { $('topTitle').textContent = message.slice(0, 30); loadHistory(); }
 
-  load();
-  setInterval(load, 3000); // 3秒ごとに新しい書き込みを確認
+      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffer = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += value;
+        const events = buffer.split('\n\n');
+        buffer = events.pop();
+        for (const ev of events) {
+          if (!ev.startsWith('data: ')) continue;
+          const data = JSON.parse(ev.slice(6));
+          if (data.text) {
+            text += data.text;
+            bubble.innerHTML = renderMarkdown(text);
+            if (logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 120) scrollBottom();
+          }
+          if (data.error) throw new Error(data.error);
+        }
+      }
+    } catch (err) {
+      bubble.innerHTML = renderMarkdown(text) + `<p class="error">${esc(err.message || '通信エラーが発生しました')}</p>`;
+    } finally {
+      bubble.classList.remove('typing');
+      busy = false;
+      sendBtn.disabled = !input.value.trim();
+      loadHistory();
+      input.focus();
+    }
+  }
+
+  function autoresize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  }
+  input.addEventListener('input', () => { autoresize(); sendBtn.disabled = busy || !input.value.trim(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+  });
+  form.addEventListener('submit', (e) => { e.preventDefault(); send(); });
+  $('newChat').onclick = newChat;
+  $('menu').onclick = () => document.body.classList.toggle('side-open');
+  $('log').addEventListener('click', () => document.body.classList.remove('side-open'));
+
+  newChat();
 </script>
 </body>
 </html>

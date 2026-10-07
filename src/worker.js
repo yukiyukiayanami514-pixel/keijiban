@@ -1,5 +1,7 @@
-// カンタン掲示板（Cloudflare Workers + D1）
-// 画面（public/）は静的アセットとして配信し、/api/posts だけをこのコードで処理します。
+// カンタン掲示板 + AIチャット（Cloudflare Workers + D1 + Workers AI）
+// 画面（public/）は静的アセットとして配信し、/api/ 以下だけをこのコードで処理します。
+import { handleChat } from './chat.js';
+
 const MAX_NAME = 30;
 const MAX_MESSAGE = 1000;
 const LIST_LIMIT = 500;
@@ -39,8 +41,10 @@ async function createPost(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const chatResponse = await handleChat(request, env, ctx);
+    if (chatResponse) return chatResponse;
     if (url.pathname === '/api/posts') {
       if (request.method === 'GET') return listPosts(env);
       if (request.method === 'POST') return createPost(request, env);
