@@ -1,0 +1,13 @@
+{
+  "name": "keijiban",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "keijiban",
+      "database_id": "1927f2f5-bd83-445b-b374-b13795c39ae1"
+    }
+  ]
+}

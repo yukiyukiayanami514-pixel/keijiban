@@ -1,10 +1,13 @@
 {
   "name": "keijiban",
   "version": "1.0.0",
+  "private": true,
   "description": "カンタン掲示板",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "dev": "wrangler d1 execute keijiban --local --file=schema.sql && wrangler dev",
+    "deploy": "wrangler deploy"
   },
-  "license": "MIT"
+  "devDependencies": {
+    "wrangler": "^4"
+  }
 }

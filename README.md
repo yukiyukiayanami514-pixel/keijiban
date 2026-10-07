@@ -1,23 +1,32 @@
 # keijiban
 TESTかんたん掲示板
 
-誰かが書き込むと、サイトを開いている全員の画面に表示される（3秒ごとに自動更新）シンプルな掲示板です。
+掲示板が1つだけあるシンプルなサイトです。誰かが書き込むと、開いている全員の画面に表示されます（3秒ごとに自動更新）。
+Cloudflare Workers（サーバー）と Cloudflare D1（書き込みの保存先データベース）で動きます。
 
-## 起動方法
+## 構成
 
-Node.js（v18以上）があれば、追加のインストールは不要です。
+- `src/worker.js` … 書き込みの受付・一覧を返す API（`/api/posts`）
+- `public/index.html` … 掲示板の画面
+- `schema.sql` … データベースのテーブル定義
+- `wrangler.jsonc` … Cloudflare の設定（D1 データベース `keijiban` を使用）
+
+## 公開（デプロイ）
+
+Cloudflare ダッシュボード → Workers & Pages → 作成 → 「リポジトリをインポート」でこの GitHub リポジトリを選ぶと、
+`wrangler.jsonc` の設定どおりに自動で公開されます。以降は GitHub にプッシュするたびに自動で更新されます。
+
+コマンドで公開する場合:
 
 ```bash
-npm start
+npm install
+npx wrangler login   # または CLOUDFLARE_API_TOKEN を設定
+npm run deploy
 ```
 
-ブラウザで http://localhost:3000 を開いてください。
-同じネットワークの他の人は `http://<このPCのIPアドレス>:3000` でアクセスできます。
+## 手元で試す
 
-ポートを変える場合: `PORT=8080 npm start`
-
-## しくみ
-
-- `server.js` … 書き込みの受付・一覧の配信を行うサーバー
-- `public/index.html` … 掲示板の画面
-- 書き込みは `data/posts.json` に保存されるので、サーバーを再起動しても消えません（最新500件まで保持）
+```bash
+npm install
+npm run dev
+```
