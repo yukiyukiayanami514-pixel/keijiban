@@ -1,0 +1,10 @@
+{
+  "name": "keijiban",
+  "version": "1.0.0",
+  "description": "カンタン掲示板",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}
